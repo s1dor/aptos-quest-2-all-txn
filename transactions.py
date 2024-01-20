@@ -5,9 +5,10 @@ from constant import MAX_SLIPPAGE_PERCENT
 from utils import get_apt_price, append_digit_to_integer
 
 SLIPPAGE = (100 - MAX_SLIPPAGE_PERCENT) / 100
-Z8 = 10**8
-Z6 = 10**6
+Z8 = 10 ** 8
+Z6 = 10 ** 6
 Rest_Client = RestClient("https://fullnode.mainnet.aptoslabs.com/v1")
+
 
 def submit_and_log_transaction(account, payload, logger):
     try:
@@ -47,6 +48,39 @@ def swap_zUSDC_to_MOD(account, amount_zUSDC: int):
     submit_and_log_transaction(account, payload, logger)
 
 
+def swap_MOD_to_APT(account, amount_MOD: int):
+    logger = setup_gay_logger('swap_MOD_to_zUSDC')
+
+    apt_price = get_apt_price()
+    normalization = amount_MOD / Z8
+    APT_ideal = normalization / apt_price
+    APT_slip = APT_ideal * SLIPPAGE
+    APT_slip_int = int(APT_slip * Z8)
+
+    payload = {
+        "type": "entry_function_payload",
+        "function": "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool_scripts::swap_exact_in",
+        "type_arguments": [
+            "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::mod_coin::MOD",
+            "0x1::aptos_coin::AptosCoin",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_50",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_50",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+            "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+            "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::mod_coin::MOD",
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            str(amount_MOD),
+            str(APT_slip_int)
+        ],
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
 def stake_MOD(account, amount_MOD: int):
     logger = setup_gay_logger('deposit_MOD')
 
@@ -63,6 +97,24 @@ def stake_MOD(account, amount_MOD: int):
 
     submit_and_log_transaction(account, payload, logger)
 
+
+def unstake_MOD(account, amount_MOD: int):
+    logger = setup_gay_logger('deposit_MOD')
+
+    payload = {
+        "type": "entry_function_payload",
+        "function": "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::stability_pool_scripts::withdraw_mod",
+        "type_arguments": [
+            "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::stability_pool::Crypto"
+        ],
+        "arguments": [
+            str(amount_MOD)
+        ],
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
 def register_coin(account, to_register: str):
     logger = setup_gay_logger(f'register_coin:<{to_register}>')
 
@@ -70,12 +122,13 @@ def register_coin(account, to_register: str):
         "type": "entry_function_payload",
         "function": "0x1::managed_coin::register",
         "type_arguments": [
-             to_register
+            to_register
         ],
         "arguments": []
     }
 
     submit_and_log_transaction(account, payload, logger)
+
 
 def swap_APT_to_zUSDC_via_liquidswap(account, amount: int):
     logger = setup_gay_logger('swap_APT_to_zUSDC_via_liquidswap')
@@ -101,6 +154,8 @@ def swap_APT_to_zUSDC_via_liquidswap(account, amount: int):
     }
 
     submit_and_log_transaction(account, payload, logger)
+
+
 def open_merkle_order(account, amount_zUSDC: int):
     # Fake tx, no actual position will be open
 
@@ -116,7 +171,6 @@ def open_merkle_order(account, amount_zUSDC: int):
     liquidation_price = int(apt * (1 - margin_requirement))
     stop_loss_price = int(apt * (1 - 0.10 / leverage))
     take_profit_price = int(apt * (1 + 0.20 / leverage))
-
 
     payload = {
         "function": "0x5ae6789dd2fec1a9ec9cccfb3acaf12e93d432f0a3a42c92fe1a9d490b7bbc06::managed_trading::place_order_with_referrer",
@@ -141,6 +195,7 @@ def open_merkle_order(account, amount_zUSDC: int):
 
     submit_and_log_transaction(account, payload, logger)
 
+
 def stake_APT(account, amount: int):
     logger = setup_gay_logger('stake_APT')
 
@@ -160,6 +215,7 @@ def stake_APT(account, amount: int):
 
     submit_and_log_transaction(account, payload, logger)
 
+
 def register_gator_market_account(account):
     logger = setup_gay_logger('register_gator_market_account')
 
@@ -178,6 +234,7 @@ def register_gator_market_account(account):
 
     submit_and_log_transaction(account, payload, logger)
 
+
 def deposit_zUSDC_to_gator(account, zUSDC_amount: int):
     logger = setup_gay_logger('deposit_zUSDC_to_gator')
 
@@ -195,6 +252,39 @@ def deposit_zUSDC_to_gator(account, zUSDC_amount: int):
     }
 
     submit_and_log_transaction(account, payload, logger)
+
+def get_APT_gator_bal(account):
+    logger = setup_gay_logger('get_APT_gator_bal')
+
+    payload = {
+        "function": "0xc0deb00c405f84c85dc13442e305df75d1288100cdd82675695f6148c7ece51c::assets",
+        "type_arguments": [
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            "7",
+            str(APT_amount)
+        ],
+        "type": "entry_function_payload"
+    }
+
+def withdraw_APT_from_gator(account, APT_amount: int):
+    logger = setup_gay_logger('withdraw_APT_from_gator')
+
+    payload = {
+        "function": "0xc0deb00c405f84c85dc13442e305df75d1288100cdd82675695f6148c7ece51c::user::withdraw_to_coinstore",
+        "type_arguments": [
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            "7",
+            str(APT_amount)
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
 
 def swap_zUSDC_to_APT_via_gator(account):
     logger = setup_gay_logger('swap_zUSDC_to_APT_via_gator')
@@ -216,6 +306,7 @@ def swap_zUSDC_to_APT_via_gator(account):
     }
 
     submit_and_log_transaction(account, payload, logger)
+
 
 def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount: int):
     logger = setup_gay_logger('swap_zUSDC_to_APT_via_pancakeswap')
@@ -240,6 +331,7 @@ def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount: int):
     }
 
     submit_and_log_transaction(account, payload, logger)
+
 
 def swap_zUSDC_to_APT_via_sushisvap(account, zUSDC_amount: int):
     logger = setup_gay_logger('swap_zUSDC_to_APT_via_sushisvap')
