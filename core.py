@@ -15,119 +15,123 @@ from transactions import (
     deposit_zUSDC_to_gator,
     swap_zUSDC_to_APT_via_gator,
     swap_zUSDC_to_APT_via_pancakeswap,
-    swap_zUSDC_to_APT_via_sushisvap,
-    withdraw_APT_from_gator
+    swap_zUSDC_to_APT_via_sushiswap,
+    withdraw_APT_from_gator,
+    swap_stAPT_to_APT_via_pancakeswap,
+    deposit_stAPT_on_aries,
+    borrow_APT_on_aries,
+    repay_APT_on_aries,
+    withdraw_stAPT_on_aries
 )
 
-from utils import get_coin_value, get_account_balance, check_registration
-from constant import zUSDC_coin, MOD_coin, MIN_SLEEP, MAX_SLEEP
+from complex_transactions import (
+    start_gator_ops,
+    start_MOD_ops,
+    start_sushi_ops,
+    borrow_APT_for_stAPT,
+    repay_APT_get_stAPT,
+)
+
+from utils import get_coin_value, get_account_balance, check_registration, get_apt_price
+from constant import zUSDC_coin, MOD_coin, stAPT_coin, MIN_SLEEP, MAX_SLEEP
 from logger import setup_gay_logger
 from transactions import Rest_Client
 
 Z8 = 10**8
 Z6 = 10**6
 
-def process_key(key):
+def process_cheap_key(key):
+    # Starting
     account = Account.load_key(key)
     address = account.address()
 
     logger = setup_gay_logger(f"{address}")
+    logger.info(f"Processing wallet {address}...")
 
-    logger.info("Getting APT available balance...")
-    APT_balance = get_account_balance(Rest_Client, account)
-    logger.info(f"Wallet has {APT_balance} APT")
-
-    logger.info("Withdtaw APT from gator")
-    withdraw_APT_from_gator(account, 10000000)
-    time.sleep(5)
-
-    logger.info("Getting APT available balance...")
-    APT_balance = get_account_balance(Rest_Client, account)
-    logger.info(f"Wallet has {APT_balance} APT")
-    return
-
-    logger.info("Checking registration...")
-    if check_registration(address, zUSDC_coin) is False:
-        logger.info("Registering coin...")
-        register_coin(account, zUSDC_coin)
-        logger.info("Coin registered.")
-
-    logger.info("Getting initial wallet balance...")
-    initial_balance_APT = get_account_balance(Rest_Client, account)
-    fix = initial_balance_APT / Z8
-    logger.info(f"Starting wallet balance is {fix} APT")
-    if fix < 1:
-        logger.critical("Wallet is too broke, add some coin")
-        return 1
-
-    half_APT = int(initial_balance_APT * 0.5)
-    quarter_APT = int(initial_balance_APT * 0.25)
-
-    logger.info("Swapping APT to zUSDC via liquidswap...")
-    swap_APT_to_zUSDC_via_liquidswap(account, half_APT)
-
-    time.sleep(10)
-
-    logger.info("Getting zUSDC coin value...")
+    # Checking initial wallet balance
     zUSDC_value = int(get_coin_value(address, zUSDC_coin))
+    MOD_value = int(get_coin_value(address, MOD_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    stAPT_value = int(get_coin_value(address, stAPT_coin))
+    logger.info(
+        f"Initial wallet balance: {balance_APT / Z8} APT, {zUSDC_value / Z6} USDC, {MOD_value / Z8} MOD, {stAPT_value / Z8} stAPT")
 
-    zUSDC_value_third = int(zUSDC_value * 0.3)
-
-    logger.info(f"Wallet has {zUSDC_value / Z6} USDC")
-    if zUSDC_value < 4000000:
-        logger.critical("Wallet is too broke, add some coin")
-        return 1
-
-    logger.info("Opening Merkle order...")
-    open_merkle_order(account, 3000000)
-    time.sleep(11)
-
-    logger.info("Swapping zUSDC to MOD...")
-    swap_zUSDC_to_MOD(account, zUSDC_value_third)
-    logger.info("Getting MOD available balance...")
-    time.sleep(15)
-    MOD_availabe = int(get_coin_value(address, MOD_coin))
-
-    logger.info(f"Wallet has {MOD_availabe / Z8} MOD")
-    logger.info("Staking MOD...")
-    stake_MOD(account, MOD_availabe)
-    time.sleep(12)
-
-    logger.info("Staking APT...")
-    stake_APT(account, quarter_APT)
-    time.sleep(13)
-
-    logger.info("Registering gator market account...")
-    register_gator_market_account(account)
-    time.sleep(9)
-
-    logger.info("Depositing zUSDC to gator...")
-    deposit_zUSDC_to_gator(account, zUSDC_value_third)
-    time.sleep(11)
-
-    logger.info("Swapping zUSDC to APT via gator...")
-    swap_zUSDC_to_APT_via_gator(account)
-    time.sleep(14)
-
-    logger.info("Calculating zUSDC value for Pancakeswap...")
-    time.sleep(5)
-    fix2 = int(get_coin_value(address, zUSDC_coin))
-    zUSDC_value2 = int(fix2 * 0.5)
-
-    logger.info("Swapping zUSDC to APT via Pancakeswap...")
-    swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_value2)
     time.sleep(10)
 
-    logger.info("Calculating remaining zUSDC value for Sushiswap...")
-    time.sleep(5)
-    zUSDC_value_left = int(get_coin_value(address, zUSDC_coin))
-    time.sleep(11)
+    # [Randomization] Swapping some APT to zUSDC
 
-    logger.info("Swapping zUSDC to APT via Sushiswap...")
-    swap_zUSDC_to_APT_via_sushisvap(account, zUSDC_value_left)
+    # Staking APT
+    balance_APT = get_account_balance(Rest_Client, account)
+    APT_to_stake = int(random.uniform(0.5, 0.8) * balance_APT)
+    logger.info(f"Staking {APT_to_stake / Z8}(out of {balance_APT / Z8}) APT...")
+    stake_APT(account, APT_to_stake)
 
-    logger.info("Process completed successfully.")
-    return 0
+    time.sleep(10)
+
+    # Borrowing APT
+    borrow_APT_for_stAPT(account)
+
+    time.sleep(10)
+
+    # Swapping APT to zUSDC via liquidswap
+    balance_APT = get_account_balance(Rest_Client, account)
+    APT_to_swap = int(balance_APT * 0.95)
+    logger.info(f"Swapping {APT_to_swap / Z8}(out of {balance_APT / Z8}) APT to zUSDC...")
+    swap_APT_to_zUSDC_via_liquidswap(account, APT_to_swap)
+
+    time.sleep(10)
+
+    # Swapping zUSDC to APT via Gator/Sushiswap/MOD staking
+    logger.info("Swapping zUSDC to APT via Gator, Sushi and Mod staking...")
+    zUSDC_value = int(get_coin_value(address, zUSDC_coin))
+    MOD_value = int(get_coin_value(address, MOD_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Wallet has {zUSDC_value / Z6} USDC, {balance_APT / Z8} APT, {MOD_value / Z8} MOD")
+
+    start_ops = [start_gator_ops, start_MOD_ops, start_sushi_ops]
+    random.shuffle(start_ops)
+    for i in range(len(start_ops)):
+        start_ops[i](account, zUSDC_value, i)
+
+    zUSDC_value = int(get_coin_value(address, zUSDC_coin))
+    MOD_value = int(get_coin_value(address, MOD_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Wallet has {zUSDC_value / Z6} USDC, {balance_APT / Z8} APT, {MOD_value / Z8} MOD")
+
+    time.sleep(10)
+
+    # Repaying APT
+    logger.info("Repaying APT...")
+    stAPT_value = int(get_coin_value(address, stAPT_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Wallet has {stAPT_value / Z8} stAPT, {balance_APT / Z8} APT")
+
+    repay_APT_get_stAPT(account)
+
+    stAPT_value = int(get_coin_value(address, stAPT_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Wallet has {stAPT_value / Z8} stAPT, {balance_APT / Z8} APT")
+
+    time.sleep(10)
+
+    # Swapping stAPT to APT via Pancake
+    logger.info("Swapping stAPT to APT via Pancake")
+    stAPT_value = int(get_coin_value(address, stAPT_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Wallet has {stAPT_value / Z8} stAPT, {balance_APT / Z8} APT")
+    swap_stAPT_to_APT_via_pancakeswap(account, stAPT_value)
+
+    time.sleep(10)
+
+    # Checking final wallet balance
+    zUSDC_value = int(get_coin_value(address, zUSDC_coin))
+    MOD_value = int(get_coin_value(address, MOD_coin))
+    balance_APT = get_account_balance(Rest_Client, account)
+    stAPT_value = int(get_coin_value(address, stAPT_coin))
+    logger.info(f"Final wallet balance: {balance_APT / Z8} APT, {zUSDC_value / Z6} USDC, {MOD_value / Z8} MOD, {stAPT_value / Z8} stAPT")
+
+    #TODO: Add some randomness, add flag to choose if we want to collect everything back to APT | Implement disperser
+
 
 def delete_line_from_file(filename, line_to_delete):
     with open(filename, 'r') as file:
@@ -144,7 +148,7 @@ with open('pkey.txt', 'r') as file:
 
 for pkey in pkeys:
     pkey = pkey.strip()
-    result = process_key(pkey)
+    result = process_cheap_key(pkey)
     if result == 0:
         delete_line_from_file('pkey.txt', pkey)
     time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))

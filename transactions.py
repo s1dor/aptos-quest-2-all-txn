@@ -10,15 +10,20 @@ Z6 = 10 ** 6
 Rest_Client = RestClient("https://fullnode.mainnet.aptoslabs.com/v1")
 
 
-def submit_and_log_transaction(account, payload, logger):
+def submit_and_log_transaction(account, payload, logger, silence=False):
     try:
         txn = Rest_Client.submit_transaction(account, payload)
         Rest_Client.wait_for_transaction(txn)
         logger.info(f'Success: https://explorer.aptoslabs.com/txn/{txn}?network=mainnet')
+        return True
     except AssertionError as e:
-        logger.error(f"AssertionError caught: {e}")
+        if not silence:
+            logger.error(f"AssertionError caught: {e}")
+        return False
     except Exception as e:
-        logger.critical(f"An unexpected error occurred: {e}")
+        if not silence:
+            logger.critical(f"An unexpected error occurred: {e}")
+        return False
 
 
 def swap_zUSDC_to_MOD(account, amount_zUSDC: int):
@@ -253,23 +258,11 @@ def deposit_zUSDC_to_gator(account, zUSDC_amount: int):
 
     submit_and_log_transaction(account, payload, logger)
 
-def get_APT_gator_bal(account):
-    logger = setup_gay_logger('get_APT_gator_bal')
 
-    payload = {
-        "function": "0xc0deb00c405f84c85dc13442e305df75d1288100cdd82675695f6148c7ece51c::assets",
-        "type_arguments": [
-            "0x1::aptos_coin::AptosCoin"
-        ],
-        "arguments": [
-            "7",
-            str(APT_amount)
-        ],
-        "type": "entry_function_payload"
-    }
-
-def withdraw_APT_from_gator(account, APT_amount: int):
+def withdraw_APT_from_gator(account, APT_amount: int, retries=10):
     logger = setup_gay_logger('withdraw_APT_from_gator')
+
+    logger.info(f"Trying to withdraw {APT_amount} from gator...")
 
     payload = {
         "function": "0xc0deb00c405f84c85dc13442e305df75d1288100cdd82675695f6148c7ece51c::user::withdraw_to_coinstore",
@@ -282,8 +275,8 @@ def withdraw_APT_from_gator(account, APT_amount: int):
         ],
         "type": "entry_function_payload"
     }
-
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        withdraw_APT_from_gator(account, int(APT_amount * 0.999), retries - 1)
 
 
 def swap_zUSDC_to_APT_via_gator(account):
@@ -299,7 +292,7 @@ def swap_zUSDC_to_APT_via_gator(account):
             "7",
             "0x63e39817ec41fad2e8d0713cc906a5f792e4cd2cf704f8b5fab6b2961281fa11",
             False,
-            "10000",
+            "100000000",
             3
         ],
         "type": "entry_function_payload"
@@ -333,8 +326,31 @@ def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount: int):
     submit_and_log_transaction(account, payload, logger)
 
 
-def swap_zUSDC_to_APT_via_sushisvap(account, zUSDC_amount: int):
-    logger = setup_gay_logger('swap_zUSDC_to_APT_via_sushisvap')
+def swap_stAPT_to_APT_via_pancakeswap(account, stAPT_amount: int):
+    logger = setup_gay_logger('swap_stAPT_to_APT_via_pancakeswap')
+
+    normalization = stAPT_amount / Z8
+    APT_slip = normalization * SLIPPAGE
+    APT_slip_int = int(APT_slip * Z8)
+
+    payload = {
+        "function": "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa::router::swap_exact_input",
+        "type_arguments": [
+            "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt",
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            str(stAPT_amount),
+            str(APT_slip_int)
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
+def swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_amount: int):
+    logger = setup_gay_logger('swap_zUSDC_to_APT_via_sushiswap')
 
     apt_price = get_apt_price()
     normalization = zUSDC_amount / Z6
@@ -351,6 +367,82 @@ def swap_zUSDC_to_APT_via_sushisvap(account, zUSDC_amount: int):
         "arguments": [
             str(zUSDC_amount),
             str(APT_slip_int)
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
+def deposit_stAPT_on_aries(account, stAPT_amount):
+    logger = setup_gay_logger('deposit_stAPT_on_aries')
+
+    payload = {
+        "function": "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::controller::deposit",
+        "type_arguments": [
+            "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt"
+        ],
+        "arguments": [
+            "0x4d61696e204163636f756e74",
+            str(stAPT_amount),
+            False
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
+def borrow_APT_on_aries(account, APT_amount):
+    logger = setup_gay_logger('borrow_APT_on_aries')
+
+    payload = {
+        "function": "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::controller::withdraw",
+        "type_arguments": [
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            "0x4d61696e204163636f756e74",
+            str(APT_amount),
+            True
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
+def repay_APT_on_aries(account):
+    logger = setup_gay_logger('repay_APT_on_aries')
+
+    payload = {
+        "function": "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::controller::deposit",
+        "type_arguments": [
+            "0x1::aptos_coin::AptosCoin"
+        ],
+        "arguments": [
+            "0x4d61696e204163636f756e74",
+            "18446744073709551615",  # INF
+            True
+        ],
+        "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
+def withdraw_stAPT_on_aries(account):
+    logger = setup_gay_logger('withdraw_stAPT_on_aries')
+
+    payload = {
+        "function": "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::controller::withdraw",
+        "type_arguments": [
+            "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt"
+        ],
+        "arguments": [
+            "0x4d61696e204163636f756e74",
+            "18446744073709551615",  # INF
+            False
         ],
         "type": "entry_function_payload"
     }
