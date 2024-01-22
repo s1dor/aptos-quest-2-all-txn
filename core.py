@@ -101,7 +101,7 @@ def process_cheap_key(key):
 
     # Staking APT
     balance_APT = get_account_balance(Rest_Client, account)
-    APT_to_stake = int(random.uniform(0.5, 0.8) * balance_APT)
+    APT_to_stake = int(random.uniform(0.6, 0.8) * balance_APT)
     logger.info(f"Staking {APT_to_stake / Z8}(out of {balance_APT / Z8}) APT...")
     stake_APT(account, APT_to_stake)
 
