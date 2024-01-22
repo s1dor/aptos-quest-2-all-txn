@@ -61,9 +61,23 @@ def process_cheap_key(key):
     logger = setup_gay_logger(f"{address}")
     logger.info(f"Processing wallet {address}...")
 
+    balance_APT = get_account_balance(Rest_Client, account)
+    logger.info(f"Initial APT balance is {balance_APT / Z8}")
+
+    # Registering coins
+    if not check_registration(address, zUSDC_coin):
+        logger.info("Registering zUSDC coin...")
+        register_coin(account, zUSDC_coin)
+
+    if not check_registration(address, MOD_coin):
+        logger.info("Registering MOD coin...")
+        register_coin(account, MOD_coin)
+
+    if not check_registration(address, stAPT_coin):
+        logger.info("Registering stAPT coin...")
+        register_coin(account, stAPT_coin)
 
     # Checking initial wallet balance
-    balance_APT = get_account_balance(Rest_Client, account)
     logger.info(
         f"Initial wallet balance: {get_wallet_bal(account)}")
 
@@ -161,6 +175,5 @@ with open('pkey.txt', 'r') as file:
 for pkey in pkeys:
     pkey = pkey.strip()
     result = process_cheap_key(pkey)
-    if result == 0:
-        delete_line_from_file('pkey.txt', pkey)
+
     time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
