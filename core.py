@@ -23,6 +23,7 @@ from transactions import (
     repay_APT_on_aries,
     withdraw_stAPT_on_aries,
     swap_APT_to_MOD,
+    register_aries_account,
 )
 
 from complex_transactions import (
@@ -35,7 +36,7 @@ from complex_transactions import (
 )
 
 from utils import get_coin_value, get_account_balance, check_registration, get_apt_price
-from constant import zUSDC_coin, MOD_coin, stAPT_coin, MIN_SLEEP, MAX_SLEEP
+from constant import zUSDC_coin, MOD_coin, stAPT_coin, MIN_SLEEP, MAX_SLEEP, gator_market_account, aries_user_profile
 from logger import setup_gay_logger
 from transactions import Rest_Client
 
@@ -64,7 +65,7 @@ def process_cheap_key(key):
     balance_APT = get_account_balance(Rest_Client, account)
     logger.info(f"Initial APT balance is {balance_APT / Z8}")
 
-    # Registering coins
+    # Registering coins and accounts
     if not check_registration(address, zUSDC_coin):
         logger.info("Registering zUSDC coin...")
         register_coin(account, zUSDC_coin)
@@ -76,6 +77,14 @@ def process_cheap_key(key):
     if not check_registration(address, stAPT_coin):
         logger.info("Registering stAPT coin...")
         register_coin(account, stAPT_coin)
+
+    if not check_registration(address, gator_market_account, False):
+        logger.info("Registering gator account...")
+        register_gator_market_account(account)
+
+    if not check_registration(address, aries_user_profile, False):
+        logger.info("Registering aries account...")
+        register_aries_account(account)
 
     # Checking initial wallet balance
     logger.info(
@@ -109,7 +118,7 @@ def process_cheap_key(key):
 
     # Swapping APT to zUSDC via liquidswap
     balance_APT = get_account_balance(Rest_Client, account)
-    APT_to_swap = int(balance_APT * 0.95)
+    APT_to_swap = int(balance_APT * 0.9)
     logger.info(f"Swapping {APT_to_swap / Z8}(out of {balance_APT / Z8}) APT to zUSDC...")
     swap_APT_to_zUSDC_via_liquidswap(account, APT_to_swap)
 
@@ -126,6 +135,7 @@ def process_cheap_key(key):
     random.shuffle(start_ops)
     for i in range(len(start_ops)):
         start_ops[i](account, zUSDC_value, i)
+        time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info(f"Wallet has {get_wallet_bal(account)}")
 

@@ -22,7 +22,8 @@ from transactions import (
     repay_APT_on_aries,
     withdraw_stAPT_on_aries,
     swap_APT_to_MOD,
-    swap_stAPT_to_APT_via_pancakeswap
+    swap_stAPT_to_APT_via_pancakeswap,
+    register_aries_account
 )
 
 from utils import get_coin_value, get_account_balance, check_registration, get_apt_price
@@ -34,23 +35,19 @@ Z8 = 10 ** 8
 Z6 = 10 ** 6
 
 
-def do_gator_ops(account, zUSDC_amount, register=True):
+def do_gator_ops(account, zUSDC_amount):
     logger = setup_gay_logger("do_gator_ops")
 
     APT_price = get_apt_price()
     APT_amount = zUSDC_amount / Z6 / APT_price * Z8
 
-    if register:
-        logger.info("Registering gator market account...")
-        register_gator_market_account(account)
-
     logger.info(f"Depositing {zUSDC_amount / Z6} zUSDC to gator...")
     deposit_zUSDC_to_gator(account, zUSDC_amount)
-    time.sleep(10)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info("Swapping zUSDC to APT...")
     swap_zUSDC_to_APT_via_gator(account)
-    time.sleep(10)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info(f"Withdrawing {APT_amount / Z8} APT from gator...")
     withdraw_APT_from_gator(account, int(APT_amount))
@@ -65,9 +62,11 @@ def do_MOD_ops(account):
 
     logger.info(f"Staking {MOD_availabe / Z8} MOD...")
     stake_MOD(account, MOD_availabe)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info(f"Unstaking {MOD_availabe / Z8} MOD...")
     unstake_MOD(account, MOD_availabe)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     MOD_availabe = int(get_coin_value(address, MOD_coin))
     logger.info(f"Wallet has {MOD_availabe / Z8} MOD")
@@ -87,7 +86,7 @@ def start_gator_ops(account, zUSDC_cap, pos):
         m = random.uniform(0.5, 0.6)
         zUSDC_amount = int(zUSDC_cap * m)
 
-    do_gator_ops(account, zUSDC_amount, True)
+    do_gator_ops(account, zUSDC_amount)
 
 
 def start_MOD_ops(account, zUSDC_cap, pos):
@@ -103,6 +102,7 @@ def start_MOD_ops(account, zUSDC_cap, pos):
 
     logger.info(f"Swapping {zUSDC_amount / Z6} zUSDC to MOD")
     swap_zUSDC_to_MOD(account, zUSDC_amount)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     do_MOD_ops(account)
 
@@ -134,9 +134,11 @@ def borrow_APT_for_stAPT(account):
 
     logger.info(f"Depositing {stAPT_value / Z8} stAPT to aries...")
     deposit_stAPT_on_aries(account, stAPT_value)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info(f"Borrowing {int(stAPT_value * 0.55) / Z8} APT from aries...")
     borrow_APT_on_aries(account, int(stAPT_value * 0.55))
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     stAPT_value = int(get_coin_value(address, stAPT_coin))
     balance_APT = get_account_balance(Rest_Client, account)
@@ -148,6 +150,7 @@ def repay_APT_get_stAPT(account):
 
     logger.info(f"Repaying all APT to aries...")
     repay_APT_on_aries(account)
+    time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     logger.info(f"Withdrawing all stAPT from aries...")
     withdraw_stAPT_on_aries(account)
@@ -177,19 +180,23 @@ def do_random_ops(account):
             logger.info(f"[Randomization] Swapping {MOD_to_use} MOD to APT and back...")
             swap_MOD_to_APT(account, MOD_to_use)
             swap_APT_to_MOD(account, int(MOD_to_use / apt_price * 0.95))
+        time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     if zUSDC_value / Z6 > 0.5 and random.random() % one_out_of == 0:
         zUSDC_to_use = int(zUSDC_value * random.uniform(0.05, 0.1))
         logger.info(f"[Randomization] Swapping {zUSDC_to_use} zUSDC to APT and back...")
         swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_to_use)
         swap_APT_to_zUSDC_via_liquidswap(account, int(zUSDC_to_use / Z6 / apt_price * Z8 * 0.95))
+        time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     if balance_APT / Z8 > 0.3 and random.random() % one_out_of == 0:
         APT_to_use = int(balance_APT * random.uniform(0.05, 0.1))
         logger.info(f"[Randomization] Staking {APT_to_use} APT...")
         stake_APT(account, APT_to_use)
+        time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     if stAPT_value / Z8 > 0.3 and random.random() % one_out_of == 0:
         stAPT_to_use = int(stAPT_value * random.uniform(0.05, 0.1))
         logger.info(f"[Randomization] Swapping {stAPT_to_use} stAPT to APT...")
         swap_stAPT_to_APT_via_pancakeswap(account, stAPT_to_use)
+        time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))

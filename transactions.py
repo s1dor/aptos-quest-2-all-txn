@@ -288,6 +288,21 @@ def register_gator_market_account(account):
     submit_and_log_transaction(account, payload, logger)
 
 
+def register_aries_account(account):
+    logger = setup_gay_logger('register_aries_account')
+
+    payload = {
+      "function": "0x9770fa9c725cbd97eb50b2be5f7416efdfd1f1554beb0750d4dae4c64e860da3::controller::register_user",
+      "type_arguments": [],
+      "arguments": [
+        "0x4d61696e204163636f756e74"
+      ],
+      "type": "entry_function_payload"
+    }
+
+    submit_and_log_transaction(account, payload, logger)
+
+
 def deposit_zUSDC_to_gator(account, zUSDC_amount: int):
     logger = setup_gay_logger('deposit_zUSDC_to_gator')
 
@@ -310,7 +325,7 @@ def deposit_zUSDC_to_gator(account, zUSDC_amount: int):
 def withdraw_APT_from_gator(account, APT_amount: int, retries=10):
     logger = setup_gay_logger('withdraw_APT_from_gator')
 
-    logger.info(f"Trying to withdraw {APT_amount} from gator...")
+    logger.info(f"Trying to withdraw {APT_amount / Z8} from gator...")
 
     payload = {
         "function": "0xc0deb00c405f84c85dc13442e305df75d1288100cdd82675695f6148c7ece51c::user::withdraw_to_coinstore",

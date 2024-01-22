@@ -2,6 +2,7 @@ import json
 import requests
 from logger import setup_gay_logger
 
+
 def get_apt_price():
     try:
         response = requests.get('https://app.merkle.trade/api/v1/summary/prices')
@@ -12,10 +13,12 @@ def get_apt_price():
     except Exception:
         return None
 
+
 def append_digit_to_integer(original_integer, digit_to_add):
     new_integer_string = str(original_integer) + str(digit_to_add)
     new_integer = int(new_integer_string)
     return new_integer
+
 
 def get_account_balance(client, account):
     logger = setup_gay_logger('get_account_balance')
@@ -38,17 +41,19 @@ def get_account_balance(client, account):
     return None
 
 
-def check_registration(address, to_check: str):
+def check_registration(address, to_check: str, is_coin: bool = True):
     logger = setup_gay_logger(f'check_<{to_check}>_registration')
     try:
-        coin_type = f"0x1::coin::CoinStore<{to_check}>"
+        if is_coin:
+            to_check = f"0x1::coin::CoinStore<{to_check}>"
         url = f"https://fullnode.mainnet.aptoslabs.com/v1/accounts/{address}/resources?limit=9999"
         response = requests.get(url)
         # print(json.dumps(response.json(), indent=4)) # Optional: Print the response for debugging
-        return any(item.get('type', '') == coin_type for item in response.json())
+        return any(item.get('type', '') == to_check for item in response.json())
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         return False
+
 
 def get_coin_value(address, coin_type_to_check: str):
     logger = setup_gay_logger(f'get_coin_value:<{coin_type_to_check}>')
