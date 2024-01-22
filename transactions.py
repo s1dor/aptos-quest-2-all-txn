@@ -26,11 +26,12 @@ def submit_and_log_transaction(account, payload, logger, silence=False):
         return False
 
 
-def swap_zUSDC_to_MOD(account, amount_zUSDC: int):
+def swap_zUSDC_to_MOD(account, amount_zUSDC, retries=2):
     logger = setup_gay_logger('swap_zUSDC_to_MOD')
 
+    slippage_dec = 0.01 * (2 - retries)
     normalization = amount_zUSDC / Z6
-    MOD_slip = normalization * SLIPPAGE
+    MOD_slip = normalization * (SLIPPAGE - slippage_dec)
     MOD_slip_int = int(MOD_slip * Z8)
 
     payload = {
@@ -50,16 +51,60 @@ def swap_zUSDC_to_MOD(account, amount_zUSDC: int):
         ],
     }
 
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_zUSDC_to_MOD(account, amount_zUSDC, retries-1)
+
+def swap_APT_to_MOD(account, amount_APT, retries = 2):
+    logger = setup_gay_logger('swap_APT_to_MOD')
+
+    slippage_dec = 0.01 * (2 - retries)
+    normalization = amount_APT / Z8
+    apt_price = get_apt_price()
+    MOD_slip = apt_price * normalization * (SLIPPAGE - slippage_dec)
+    MOD_slip_int = int(MOD_slip * Z8)
+
+    payload = {
+      "function": "0x60955b957956d79bc80b096d3e41bad525dd400d8ce957cdeb05719ed1e4fc26::router::swap_exact_in_2",
+      "type_arguments": [
+        "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL",
+        "0x1::aptos_coin::AptosCoin",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_50",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_50",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::mod_coin::MOD",
+        "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_20",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::weighted_pool::Weight_80",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x48271d39d0b05bd6efca2278f22277d6fcc375504f9839fd73f74ace240861af::base_pool::Null",
+        "0x1::aptos_coin::AptosCoin",
+        "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL",
+        "0x6f986d146e4a90b828d8c12c14b6f4e003fdff11a8eecceceb63744363eaac01::mod_coin::MOD"
+      ],
+      "arguments": [
+        str(amount_APT),
+        str(MOD_slip_int)
+      ],
+      "type": "entry_function_payload"
+    }
+
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_APT_to_MOD(account, amount_APT, retries-1)
 
 
-def swap_MOD_to_APT(account, amount_MOD: int):
+def swap_MOD_to_APT(account, amount_MOD, retries = 2):
     logger = setup_gay_logger('swap_MOD_to_zUSDC')
 
+    slippage_dec = 0.01 * (2 - retries)
     apt_price = get_apt_price()
     normalization = amount_MOD / Z8
     APT_ideal = normalization / apt_price
-    APT_slip = APT_ideal * SLIPPAGE
+    APT_slip = APT_ideal * (SLIPPAGE - slippage_dec)
     APT_slip_int = int(APT_slip * Z8)
 
     payload = {
@@ -83,7 +128,8 @@ def swap_MOD_to_APT(account, amount_MOD: int):
         ],
     }
 
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_MOD_to_APT(account, amount_MOD, retries - 1)
 
 
 def stake_MOD(account, amount_MOD: int):
@@ -135,13 +181,14 @@ def register_coin(account, to_register: str):
     submit_and_log_transaction(account, payload, logger)
 
 
-def swap_APT_to_zUSDC_via_liquidswap(account, amount: int):
+def swap_APT_to_zUSDC_via_liquidswap(account, amount, retries = 2):
     logger = setup_gay_logger('swap_APT_to_zUSDC_via_liquidswap')
 
+    slippage_dec = 0.01 * (2 - retries)
     apt_price = get_apt_price()
     normalization = amount / Z8
     zUSDC_ideal = apt_price * normalization
-    zUSDC_slip = zUSDC_ideal * SLIPPAGE
+    zUSDC_slip = zUSDC_ideal * (SLIPPAGE - slippage_dec)
     zUSDC_slip_int = int(zUSDC_slip * Z6)
 
     payload = {
@@ -158,7 +205,8 @@ def swap_APT_to_zUSDC_via_liquidswap(account, amount: int):
         ],
     }
 
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_APT_to_zUSDC_via_liquidswap(account, amount, retries-1)
 
 
 def open_merkle_order(account, amount_zUSDC: int):
@@ -301,13 +349,14 @@ def swap_zUSDC_to_APT_via_gator(account):
     submit_and_log_transaction(account, payload, logger)
 
 
-def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount: int):
+def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount, retries = 2):
     logger = setup_gay_logger('swap_zUSDC_to_APT_via_pancakeswap')
 
+    slippage_dec = 0.01 * (2 - retries)
     apt_price = get_apt_price()
     normalization = zUSDC_amount / Z6
     APT_ideal = normalization / apt_price
-    APT_slip = APT_ideal * SLIPPAGE
+    APT_slip = APT_ideal * (SLIPPAGE - slippage_dec)
     APT_slip_int = int(APT_slip * Z8)
 
     payload = {
@@ -323,14 +372,16 @@ def swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount: int):
         "type": "entry_function_payload"
     }
 
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_zUSDC_to_APT_via_pancakeswap(account, zUSDC_amount, retries-1)
 
 
-def swap_stAPT_to_APT_via_pancakeswap(account, stAPT_amount: int):
+def swap_stAPT_to_APT_via_pancakeswap(account, stAPT_amount, retries = 2):
     logger = setup_gay_logger('swap_stAPT_to_APT_via_pancakeswap')
 
+    slippage_dec = 0.01 * (2 - retries)
     normalization = stAPT_amount / Z8
-    APT_slip = normalization * SLIPPAGE
+    APT_slip = normalization * (SLIPPAGE - slippage_dec)
     APT_slip_int = int(APT_slip * Z8)
 
     payload = {
@@ -346,16 +397,18 @@ def swap_stAPT_to_APT_via_pancakeswap(account, stAPT_amount: int):
         "type": "entry_function_payload"
     }
 
-    submit_and_log_transaction(account, payload, logger)
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_stAPT_to_APT_via_pancakeswap(account, stAPT_amount, retries-1)
 
 
-def swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_amount: int):
+def swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_amount, retries = 2):
     logger = setup_gay_logger('swap_zUSDC_to_APT_via_sushiswap')
 
+    slippage_dec = 0.01 * (2 - retries)
     apt_price = get_apt_price()
     normalization = zUSDC_amount / Z6
     APT_ideal = normalization / apt_price
-    APT_slip = APT_ideal * SLIPPAGE
+    APT_slip = APT_ideal * (SLIPPAGE - slippage_dec)
     APT_slip_int = int(APT_slip * Z8)
 
     payload = {
@@ -371,8 +424,8 @@ def swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_amount: int):
         "type": "entry_function_payload"
     }
 
-    submit_and_log_transaction(account, payload, logger)
-
+    if not submit_and_log_transaction(account, payload, logger, retries > 0) and retries > 0:
+        swap_zUSDC_to_APT_via_sushiswap(account, zUSDC_amount, retries-1)
 
 def deposit_stAPT_on_aries(account, stAPT_amount):
     logger = setup_gay_logger('deposit_stAPT_on_aries')
