@@ -40,8 +40,8 @@ from constant import zUSDC_coin, MOD_coin, stAPT_coin, MIN_SLEEP, MAX_SLEEP, gat
 from logger import setup_gay_logger
 from transactions import Rest_Client
 
-Z8 = 10**8
-Z6 = 10**6
+Z8 = 10 ** 8
+Z6 = 10 ** 6
 
 
 def get_wallet_bal(account):
@@ -53,6 +53,7 @@ def get_wallet_bal(account):
     stAPT_value = int(get_coin_value(address, stAPT_coin))
 
     return f"{balance_APT / Z8} APT, {zUSDC_value / Z6} USDC, {MOD_value / Z8} MOD, {stAPT_value / Z8} stAPT"
+
 
 def process_cheap_key(key):
     # Initializing
@@ -93,7 +94,7 @@ def process_cheap_key(key):
     time.sleep(random.randint(MIN_SLEEP, MAX_SLEEP))
 
     # [Randomization] Swapping some APT to zUSDC
-    if random.random() % 2 == 0:
+    if random.randint(1, 100) % 2 == 0:
         APT_to_swap = int(balance_APT * random.uniform(0.05, 0.1))
         logger.info(f"[Randomization] Swapping {APT_to_swap} APT to zUSDC")
         swap_APT_to_zUSDC_via_liquidswap(account, APT_to_swap)
@@ -166,7 +167,7 @@ def process_cheap_key(key):
     # Checking final wallet balance
     logger.info(f"Final wallet balance: {get_wallet_bal(account)}")
 
-    #TODO: Add some randomness, add flag to choose if we want to collect everything back to APT | Implement disperser
+    # TODO: Add some randomness, add flag to choose if we want to collect everything back to APT | Implement disperser
 
 
 def delete_line_from_file(filename, line_to_delete):
@@ -177,6 +178,7 @@ def delete_line_from_file(filename, line_to_delete):
         for line in lines:
             if line.strip("\n") != line_to_delete:
                 file.write(line)
+
 
 # Main logic
 with open('pkey.txt', 'r') as file:
